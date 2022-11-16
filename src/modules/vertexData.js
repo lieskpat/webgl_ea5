@@ -1,3 +1,5 @@
+const geometryModelDatas = [];
+
 function createVertexData() {
     var n = 16;
     var m = 32;
@@ -76,4 +78,7 @@ function createVertexData() {
     }
 }
 
-export { createVertexData };
+geometryModelDatas.push({ description: "torus", function: createVertexData });
+geometryModelDatas.push({ description: "plane", function: createVertexData });
+
+export { geometryModelDatas };

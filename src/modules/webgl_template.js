@@ -1,7 +1,7 @@
 import { mat4 } from "gl-matrix";
 import vertexGlsl from "../shader/vertexShader_shader_language.js";
 import fragmentGlsl from "../shader/fragmentShader_shader_language.js";
-import { createVertexData } from "./vertexData.js";
+import { geometryModelDatas } from "./vertexData.js";
 
 //const gl = initContext("gl_context");
 let gl;
@@ -133,6 +133,7 @@ function initModels() {
     // fill-style
     const fs = "fillwireframe";
     createModel("torus", fs);
+    //createModel("plane", "wireframe");
 }
 
 /**
@@ -163,7 +164,11 @@ function initDataAndBuffers(model, geometryname) {
     // vertices, normals, indicesLines, indicesTris;
     // Pointer this refers to the window.
     //this[geometryname]["createVertexData"].apply(model);
-    createVertexData.apply(model);
+    for (let i = 0; i < geometryModelDatas.length; i++) {
+        if (geometryModelDatas[i].description === geometryname) {
+            geometryModelDatas[i].function.apply(model);
+        }
+    }
 
     // Setup position vertex buffer object.
     model.vboPos = gl.createBuffer();
@@ -225,6 +230,7 @@ function render() {
     setProjection();
 
     mat4.identity(camera.vMatrix);
+    mat4.rotate(camera.vMatrix, camera.vMatrix, (Math.PI * 1) / 4, [1, 0, 0]);
 
     // Loop over models.
     for (let i = 0; i < models.length; i++) {
@@ -233,7 +239,6 @@ function render() {
 
         // Set uniforms for model.
         gl.uniformMatrix4fv(prog.mvMatrixUniform, false, models[i].mvMatrix);
-        console.log(models[i]);
         draw(models[i]);
     }
 }
