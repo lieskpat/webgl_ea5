@@ -27,11 +27,14 @@ const camera = {
     // value for left right top bottom in projection.
     lrtb: 2.0,
     // View matrix.
+    // creates identy matrix
     vMatrix: mat4.create(),
     // Projection matrix.
+    // creates identy matrix
     pMatrix: mat4.create(),
     // Projection types: ortho, perspective, frustum.
-    projectionType: "ortho",
+    //projectionType: "ortho",
+    projectionType: "perspective",
     // Angle to Z-Axis for camera when orbiting the center
     // given in radian.
     zAngle: 0,
@@ -133,7 +136,7 @@ function initModels() {
     // fill-style
     const fs = "fillwireframe";
     createModel("torus", fs);
-    //createModel("plane", "wireframe");
+    createModel("plane", "wireframe");
 }
 
 /**
@@ -147,6 +150,7 @@ function createModel(geometryname, fillstyle) {
     model.fillstyle = fillstyle;
     initDataAndBuffers(model, geometryname);
     // Create and initialize Model-View-Matrix.
+    // transformiert Model Vertex von Welt in Kamerakoordinaten
     model.mvMatrix = mat4.create();
 
     models.push(model);
@@ -202,10 +206,18 @@ function initDataAndBuffers(model, geometryname) {
 }
 
 function initEventHandler() {
+    const deltaRotate = Math.PI / 36;
+    const deltaTranslate = 0.05;
+    const x = 0,
+        y = 1,
+        z = 2;
     window.onkeydown = function (evt) {
+        const sign = evt.shiftKey ? 1 : -1;
         const key = evt.which ? evt.which : evt.keyCode;
         const c = String.fromCharCode(key);
-        // console.log(evt);
+        console.log(key);
+        console.log(c);
+        console.log("sign: " + sign);
 
         // Change projection of scene.
         switch (c) {
@@ -213,6 +225,34 @@ function initEventHandler() {
                 camera.projectionType = "ortho";
                 camera.lrtb = 2;
                 break;
+            case "P":
+                camera.projectionType = "perspective";
+                break;
+            case "F":
+                camera.projectionType = "frustum";
+                camera.lrtb = 1.2;
+                break;
+            case "%":
+                camera.zAngle -= deltaRotate;
+                break;
+            case "'":
+                camera.zAngle += deltaRotate;
+                break;
+            case "N":
+                camera.distance += sign * deltaTranslate;
+            case "H":
+                camera.eye[y] += -sign * deltaTranslate;
+                break;
+            case "V":
+                // Camera fovy in radian.
+                camera.fovy += (sign * 5 * Math.PI) / 180;
+                break;
+            case "B":
+                // Camera near plane dimensions.
+                camera.lrtb += sign * 0.1;
+                console.log("camera-lrtb: " + camera.lrtb);
+                break;
+            default:
         }
 
         // Render the scene again on any key pressed.
@@ -226,21 +266,45 @@ function initEventHandler() {
 function render() {
     // Clear framebuffer and depth-/z-buffer.
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-
+    // setze Projektionsmatrix camera.pMatrix (orthogonal, perspektivisch etc.)
     setProjection();
 
-    mat4.identity(camera.vMatrix);
-    mat4.rotate(camera.vMatrix, camera.vMatrix, (Math.PI * 1) / 4, [1, 0, 0]);
+    //mat4.identity(camera.vMatrix);
+    //mat4.rotate(camera.vMatrix, camera.vMatrix, (Math.PI * 1) / 8, [1, 0, 0]);
+    // Kreisbahn der Kamera
+    // Anpassung der x und z koordinaten
+    calculateCameraOrbit();
+    //1. Parameter - out -> Ergebniss der 4x4 Matrix wird in out geschrieben
+    //2. Parameter - eye -> virtuelle Position der Kamera
+    //3. Parameter - center -> der Punkt auf den die Kamera schaut
+    //4. Parameter - up -> kann Kamera um die Achse des Objektives gedreht werden
+    //eye(0, 1, 4), center(0, 0, 0), up(0, 1, 0)
+    mat4.lookAt(camera.vMatrix, camera.eye, camera.center, camera.up);
 
     // Loop over models.
     for (let i = 0; i < models.length; i++) {
         // Update modelview for model.
+        // kopiert die Camera-Matrix in die Model-View-Matrix
         mat4.copy(models[i].mvMatrix, camera.vMatrix);
 
         // Set uniforms for model.
+        // binde die Model-View-Matrix zur Transformation der Vertex Welt-Koordinaten
+        // in Kamera Koordinaten
         gl.uniformMatrix4fv(prog.mvMatrixUniform, false, models[i].mvMatrix);
         draw(models[i]);
     }
+}
+
+function calculateCameraOrbit() {
+    // Calculate x,z position/eye of camera orbiting the center.
+    // Kreisbahn um das Objekt
+    const x = 0,
+        z = 2;
+    camera.eye[x] = camera.center[x];
+    camera.eye[z] = camera.center[z];
+    // camera.distance ist der Radius des Kreises (der Kamera-Kreisbahn)
+    camera.eye[x] += camera.distance * Math.sin(camera.zAngle);
+    camera.eye[z] += camera.distance * Math.cos(camera.zAngle);
 }
 
 function setProjection() {
@@ -250,6 +314,15 @@ function setProjection() {
             const v = camera.lrtb;
             mat4.ortho(camera.pMatrix, -v, v, -v, v, -10, 10);
             break;
+        case "perspective":
+            mat4.perspective(camera.pMatrix, camera.fovy, camera.aspect, 1, 10);
+            break;
+
+        case "frustum":
+            const f = camera.lrtb;
+            mat4.frustum(camera.pMatrix, -f / 2, f / 2, -f / 2, f / 2, 1, 10);
+            break;
+        default:
     }
     // Set projection uniform.
     gl.uniformMatrix4fv(prog.pMatrixUniform, false, camera.pMatrix);

@@ -138,85 +138,89 @@ function identity(out) {
   return out;
 }
 /**
- * Rotates a mat4 by the given angle around the given axis
+ * Generates a frustum matrix with the given bounds
  *
- * @param {mat4} out the receiving matrix
- * @param {ReadonlyMat4} a the matrix to rotate
- * @param {Number} rad the angle to rotate the matrix by
- * @param {ReadonlyVec3} axis the axis to rotate around
+ * @param {mat4} out mat4 frustum matrix will be written into
+ * @param {Number} left Left bound of the frustum
+ * @param {Number} right Right bound of the frustum
+ * @param {Number} bottom Bottom bound of the frustum
+ * @param {Number} top Top bound of the frustum
+ * @param {Number} near Near bound of the frustum
+ * @param {Number} far Far bound of the frustum
  * @returns {mat4} out
  */
 
-function rotate(out, a, rad, axis) {
-  var x = axis[0],
-      y = axis[1],
-      z = axis[2];
-  var len = Math.hypot(x, y, z);
-  var s, c, t;
-  var a00, a01, a02, a03;
-  var a10, a11, a12, a13;
-  var a20, a21, a22, a23;
-  var b00, b01, b02;
-  var b10, b11, b12;
-  var b20, b21, b22;
+function frustum(out, left, right, bottom, top, near, far) {
+  var rl = 1 / (right - left);
+  var tb = 1 / (top - bottom);
+  var nf = 1 / (near - far);
+  out[0] = near * 2 * rl;
+  out[1] = 0;
+  out[2] = 0;
+  out[3] = 0;
+  out[4] = 0;
+  out[5] = near * 2 * tb;
+  out[6] = 0;
+  out[7] = 0;
+  out[8] = (right + left) * rl;
+  out[9] = (top + bottom) * tb;
+  out[10] = (far + near) * nf;
+  out[11] = -1;
+  out[12] = 0;
+  out[13] = 0;
+  out[14] = far * near * 2 * nf;
+  out[15] = 0;
+  return out;
+}
+/**
+ * Generates a perspective projection matrix with the given bounds.
+ * The near/far clip planes correspond to a normalized device coordinate Z range of [-1, 1],
+ * which matches WebGL/OpenGL's clip volume.
+ * Passing null/undefined/no value for far will generate infinite projection matrix.
+ *
+ * @param {mat4} out mat4 frustum matrix will be written into
+ * @param {number} fovy Vertical field of view in radians
+ * @param {number} aspect Aspect ratio. typically viewport width/height
+ * @param {number} near Near bound of the frustum
+ * @param {number} far Far bound of the frustum, can be null or Infinity
+ * @returns {mat4} out
+ */
 
-  if (len < EPSILON) {
-    return null;
-  }
+function perspectiveNO(out, fovy, aspect, near, far) {
+  var f = 1.0 / Math.tan(fovy / 2),
+      nf;
+  out[0] = f / aspect;
+  out[1] = 0;
+  out[2] = 0;
+  out[3] = 0;
+  out[4] = 0;
+  out[5] = f;
+  out[6] = 0;
+  out[7] = 0;
+  out[8] = 0;
+  out[9] = 0;
+  out[11] = -1;
+  out[12] = 0;
+  out[13] = 0;
+  out[15] = 0;
 
-  len = 1 / len;
-  x *= len;
-  y *= len;
-  z *= len;
-  s = Math.sin(rad);
-  c = Math.cos(rad);
-  t = 1 - c;
-  a00 = a[0];
-  a01 = a[1];
-  a02 = a[2];
-  a03 = a[3];
-  a10 = a[4];
-  a11 = a[5];
-  a12 = a[6];
-  a13 = a[7];
-  a20 = a[8];
-  a21 = a[9];
-  a22 = a[10];
-  a23 = a[11]; // Construct the elements of the rotation matrix
-
-  b00 = x * x * t + c;
-  b01 = y * x * t + z * s;
-  b02 = z * x * t - y * s;
-  b10 = x * y * t - z * s;
-  b11 = y * y * t + c;
-  b12 = z * y * t + x * s;
-  b20 = x * z * t + y * s;
-  b21 = y * z * t - x * s;
-  b22 = z * z * t + c; // Perform rotation-specific matrix multiplication
-
-  out[0] = a00 * b00 + a10 * b01 + a20 * b02;
-  out[1] = a01 * b00 + a11 * b01 + a21 * b02;
-  out[2] = a02 * b00 + a12 * b01 + a22 * b02;
-  out[3] = a03 * b00 + a13 * b01 + a23 * b02;
-  out[4] = a00 * b10 + a10 * b11 + a20 * b12;
-  out[5] = a01 * b10 + a11 * b11 + a21 * b12;
-  out[6] = a02 * b10 + a12 * b11 + a22 * b12;
-  out[7] = a03 * b10 + a13 * b11 + a23 * b12;
-  out[8] = a00 * b20 + a10 * b21 + a20 * b22;
-  out[9] = a01 * b20 + a11 * b21 + a21 * b22;
-  out[10] = a02 * b20 + a12 * b21 + a22 * b22;
-  out[11] = a03 * b20 + a13 * b21 + a23 * b22;
-
-  if (a !== out) {
-    // If the source and destination differ, copy the unchanged last row
-    out[12] = a[12];
-    out[13] = a[13];
-    out[14] = a[14];
-    out[15] = a[15];
+  if (far != null && far !== Infinity) {
+    nf = 1 / (near - far);
+    out[10] = (far + near) * nf;
+    out[14] = 2 * far * near * nf;
+  } else {
+    out[10] = -1;
+    out[14] = -2 * near;
   }
 
   return out;
 }
+/**
+ * Alias for {@link mat4.perspectiveNO}
+ * @function
+ */
+
+var perspective = perspectiveNO;
 /**
  * Generates a orthogonal projection matrix with the given bounds.
  * The near/far clip planes correspond to a normalized device coordinate Z range of [-1, 1],
@@ -260,10 +264,94 @@ function orthoNO(out, left, right, bottom, top, near, far) {
  */
 
 var ortho = orthoNO;
+/**
+ * Generates a look-at matrix with the given eye position, focal point, and up axis.
+ * If you want a matrix that actually makes an object look at another object, you should use targetTo instead.
+ *
+ * @param {mat4} out mat4 frustum matrix will be written into
+ * @param {ReadonlyVec3} eye Position of the viewer
+ * @param {ReadonlyVec3} center Point the viewer is looking at
+ * @param {ReadonlyVec3} up vec3 pointing up
+ * @returns {mat4} out
+ */
+
+function lookAt(out, eye, center, up) {
+  var x0, x1, x2, y0, y1, y2, z0, z1, z2, len;
+  var eyex = eye[0];
+  var eyey = eye[1];
+  var eyez = eye[2];
+  var upx = up[0];
+  var upy = up[1];
+  var upz = up[2];
+  var centerx = center[0];
+  var centery = center[1];
+  var centerz = center[2];
+
+  if (Math.abs(eyex - centerx) < EPSILON && Math.abs(eyey - centery) < EPSILON && Math.abs(eyez - centerz) < EPSILON) {
+    return identity(out);
+  }
+
+  z0 = eyex - centerx;
+  z1 = eyey - centery;
+  z2 = eyez - centerz;
+  len = 1 / Math.hypot(z0, z1, z2);
+  z0 *= len;
+  z1 *= len;
+  z2 *= len;
+  x0 = upy * z2 - upz * z1;
+  x1 = upz * z0 - upx * z2;
+  x2 = upx * z1 - upy * z0;
+  len = Math.hypot(x0, x1, x2);
+
+  if (!len) {
+    x0 = 0;
+    x1 = 0;
+    x2 = 0;
+  } else {
+    len = 1 / len;
+    x0 *= len;
+    x1 *= len;
+    x2 *= len;
+  }
+
+  y0 = z1 * x2 - z2 * x1;
+  y1 = z2 * x0 - z0 * x2;
+  y2 = z0 * x1 - z1 * x0;
+  len = Math.hypot(y0, y1, y2);
+
+  if (!len) {
+    y0 = 0;
+    y1 = 0;
+    y2 = 0;
+  } else {
+    len = 1 / len;
+    y0 *= len;
+    y1 *= len;
+    y2 *= len;
+  }
+
+  out[0] = x0;
+  out[1] = y0;
+  out[2] = z0;
+  out[3] = 0;
+  out[4] = x1;
+  out[5] = y1;
+  out[6] = z1;
+  out[7] = 0;
+  out[8] = x2;
+  out[9] = y2;
+  out[10] = z2;
+  out[11] = 0;
+  out[12] = -(x0 * eyex + x1 * eyey + x2 * eyez);
+  out[13] = -(y0 * eyex + y1 * eyey + y2 * eyez);
+  out[14] = -(z0 * eyex + z1 * eyey + z2 * eyez);
+  out[15] = 1;
+  return out;
+}
 
 const geometryModelDatas = [];
 
-function createVertexData() {
+function createVertexDataTorus() {
     var n = 16;
     var m = 32;
 
@@ -341,8 +429,90 @@ function createVertexData() {
     }
 }
 
-geometryModelDatas.push({ description: "torus", function: createVertexData });
-geometryModelDatas.push({ description: "plane", function: createVertexData });
+function createVertexDataPlane() {
+    var n = 100;
+    var m = 100;
+
+    // Positions.
+    this.vertices = new Float32Array(3 * (n + 1) * (m + 1));
+    var vertices = this.vertices;
+    // Normals.
+    this.normals = new Float32Array(3 * (n + 1) * (m + 1));
+    var normals = this.normals;
+    // Index data.
+    this.indicesLines = new Uint16Array(2 * 2 * n * m);
+    var indicesLines = this.indicesLines;
+    this.indicesTris = new Uint16Array(3 * 2 * n * m);
+    var indicesTris = this.indicesTris;
+
+    var du = 20 / n;
+    var dv = 20 / m;
+    // Counter for entries in index array.
+    var iLines = 0;
+    var iTris = 0;
+
+    // Loop angle u.
+    for (var i = 0, u = -10; i <= n; i++, u += du) {
+        // Loop angle v.
+        for (var j = 0, v = -10; j <= m; j++, v += dv) {
+            var iVertex = i * (m + 1) + j;
+
+            var x = u;
+            var y = 0;
+            var z = v;
+
+            // Set vertex positions.
+            vertices[iVertex * 3] = x;
+            vertices[iVertex * 3 + 1] = y;
+            vertices[iVertex * 3 + 2] = z;
+
+            // Calc and set normals.
+            //var nx = Math.cos(u) * Math.cos(v);
+            //var ny = Math.cos(u) * Math.sin(v);
+            //var nz = Math.sin(u);
+            normals[iVertex * 3] = 0;
+            normals[iVertex * 3 + 1] = 1;
+            normals[iVertex * 3 + 2] = 0;
+
+            // if(i>14){
+            // continue;
+            // }
+
+            // Set index.
+            // Line on beam.
+            if (j > 0 && i > 0) {
+                indicesLines[iLines++] = iVertex - 1;
+                indicesLines[iLines++] = iVertex;
+            }
+            // Line on ring.
+            if (j > 0 && i > 0) {
+                indicesLines[iLines++] = iVertex - (m + 1);
+                indicesLines[iLines++] = iVertex;
+            }
+
+            // Set index.
+            // Two Triangles.
+            if (j > 0 && i > 0) {
+                indicesTris[iTris++] = iVertex;
+                indicesTris[iTris++] = iVertex - 1;
+                indicesTris[iTris++] = iVertex - (m + 1);
+                //
+                indicesTris[iTris++] = iVertex - 1;
+                indicesTris[iTris++] = iVertex - (m + 1) - 1;
+                indicesTris[iTris++] = iVertex - (m + 1);
+            }
+        }
+    }
+}
+
+geometryModelDatas.push({
+    description: "torus",
+    function: createVertexDataTorus,
+});
+geometryModelDatas.push({
+    description: "plane",
+    function: createVertexDataPlane,
+});
 
 //const gl = initContext("gl_context");
 let gl;
@@ -368,11 +538,14 @@ const camera = {
     // value for left right top bottom in projection.
     lrtb: 2.0,
     // View matrix.
+    // creates identy matrix
     vMatrix: create(),
     // Projection matrix.
+    // creates identy matrix
     pMatrix: create(),
     // Projection types: ortho, perspective, frustum.
-    projectionType: "ortho",
+    //projectionType: "ortho",
+    projectionType: "perspective",
     // Angle to Z-Axis for camera when orbiting the center
     // given in radian.
     zAngle: 0,
@@ -474,7 +647,7 @@ function initModels() {
     // fill-style
     const fs = "fillwireframe";
     createModel("torus", fs);
-    //createModel("plane", "wireframe");
+    createModel("plane", "wireframe");
 }
 
 /**
@@ -488,6 +661,7 @@ function createModel(geometryname, fillstyle) {
     model.fillstyle = fillstyle;
     initDataAndBuffers(model, geometryname);
     // Create and initialize Model-View-Matrix.
+    // transformiert Model Vertex von Welt in Kamerakoordinaten
     model.mvMatrix = create();
 
     models.push(model);
@@ -543,16 +717,49 @@ function initDataAndBuffers(model, geometryname) {
 }
 
 function initEventHandler() {
+    const deltaRotate = Math.PI / 36;
+    const deltaTranslate = 0.05;
+    const y = 1;
     window.onkeydown = function (evt) {
+        const sign = evt.shiftKey ? 1 : -1;
         const key = evt.which ? evt.which : evt.keyCode;
         const c = String.fromCharCode(key);
-        // console.log(evt);
+        console.log(key);
+        console.log(c);
+        console.log("sign: " + sign);
 
         // Change projection of scene.
         switch (c) {
             case "O":
                 camera.projectionType = "ortho";
                 camera.lrtb = 2;
+                break;
+            case "P":
+                camera.projectionType = "perspective";
+                break;
+            case "F":
+                camera.projectionType = "frustum";
+                camera.lrtb = 1.2;
+                break;
+            case "%":
+                camera.zAngle -= deltaRotate;
+                break;
+            case "'":
+                camera.zAngle += deltaRotate;
+                break;
+            case "N":
+                camera.distance += sign * deltaTranslate;
+            case "H":
+                camera.eye[y] += -sign * deltaTranslate;
+                break;
+            case "V":
+                // Camera fovy in radian.
+                camera.fovy += (sign * 5 * Math.PI) / 180;
+                break;
+            case "B":
+                // Camera near plane dimensions.
+                camera.lrtb += sign * 0.1;
+                console.log("camera-lrtb: " + camera.lrtb);
                 break;
         }
 
@@ -567,21 +774,45 @@ function initEventHandler() {
 function render() {
     // Clear framebuffer and depth-/z-buffer.
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-
+    // setze Projektionsmatrix camera.pMatrix (orthogonal, perspektivisch etc.)
     setProjection();
 
-    identity(camera.vMatrix);
-    rotate(camera.vMatrix, camera.vMatrix, (Math.PI * 1) / 4, [1, 0, 0]);
+    //mat4.identity(camera.vMatrix);
+    //mat4.rotate(camera.vMatrix, camera.vMatrix, (Math.PI * 1) / 8, [1, 0, 0]);
+    // Kreisbahn der Kamera
+    // Anpassung der x und z koordinaten
+    calculateCameraOrbit();
+    //1. Parameter - out -> Ergebniss der 4x4 Matrix wird in out geschrieben
+    //2. Parameter - eye -> virtuelle Position der Kamera
+    //3. Parameter - center -> der Punkt auf den die Kamera schaut
+    //4. Parameter - up -> kann Kamera um die Achse des Objektives gedreht werden
+    //eye(0, 1, 4), center(0, 0, 0), up(0, 1, 0)
+    lookAt(camera.vMatrix, camera.eye, camera.center, camera.up);
 
     // Loop over models.
     for (let i = 0; i < models.length; i++) {
         // Update modelview for model.
+        // kopiert die Camera-Matrix in die Model-View-Matrix
         copy(models[i].mvMatrix, camera.vMatrix);
 
         // Set uniforms for model.
+        // binde die Model-View-Matrix zur Transformation der Vertex Welt-Koordinaten
+        // in Kamera Koordinaten
         gl.uniformMatrix4fv(prog.mvMatrixUniform, false, models[i].mvMatrix);
         draw(models[i]);
     }
+}
+
+function calculateCameraOrbit() {
+    // Calculate x,z position/eye of camera orbiting the center.
+    // Kreisbahn um das Objekt
+    const x = 0,
+        z = 2;
+    camera.eye[x] = camera.center[x];
+    camera.eye[z] = camera.center[z];
+    // camera.distance ist der Radius des Kreises (der Kamera-Kreisbahn)
+    camera.eye[x] += camera.distance * Math.sin(camera.zAngle);
+    camera.eye[z] += camera.distance * Math.cos(camera.zAngle);
 }
 
 function setProjection() {
@@ -590,6 +821,14 @@ function setProjection() {
         case "ortho":
             const v = camera.lrtb;
             ortho(camera.pMatrix, -v, v, -v, v, -10, 10);
+            break;
+        case "perspective":
+            perspective(camera.pMatrix, camera.fovy, camera.aspect, 1, 10);
+            break;
+
+        case "frustum":
+            const f = camera.lrtb;
+            frustum(camera.pMatrix, -f / 2, f / 2, -f / 2, f / 2, 1, 10);
             break;
     }
     // Set projection uniform.
