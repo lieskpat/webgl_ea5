@@ -16,8 +16,10 @@ const models = [];
 const camera = {
     // Initial position of the camera.
     eye: [0, 1, 4],
+    //eye: [0, 0, 0],
     // Point to look at.
     center: [0, 0, 0],
+    //center: [0, 0, -1],
     // Roll and pitch of the camera.
     up: [0, 1, 0],
     // Opening angle given in radian.
@@ -25,7 +27,7 @@ const camera = {
     fovy: (60.0 * Math.PI) / 180,
     // Camera near plane dimensions:
     // value for left right top bottom in projection.
-    lrtb: 2.0,
+    lrtb: 1.2,
     // View matrix.
     // creates identy matrix
     vMatrix: mat4.create(),
@@ -34,7 +36,7 @@ const camera = {
     pMatrix: mat4.create(),
     // Projection types: ortho, perspective, frustum.
     //projectionType: "ortho",
-    projectionType: "perspective",
+    projectionType: "frustum",
     // Angle to Z-Axis for camera when orbiting the center
     // given in radian.
     zAngle: 0,
@@ -135,8 +137,10 @@ function initUniforms() {
 function initModels() {
     // fill-style
     const fs = "fillwireframe";
-    createModel("torus", fs);
-    createModel("plane", "wireframe");
+    createModel("torus", fs, [-1, 0, 0], [0.5, 0.5, 0.5]);
+    //createModel("torus", "wireframe");
+    createModel("plane", "wireframe", [0, 0, 0], [1.0, 1.0, 1.0]);
+    createModel("pillow", fs, [1.0, 0, 0], [0.5, 0.5, 0.5]);
 }
 
 /**
@@ -145,13 +149,15 @@ function initModels() {
  * @parameter geometryname: string with name of geometry.
  * @parameter fillstyle: wireframe, fill, fillwireframe.
  */
-function createModel(geometryname, fillstyle) {
+function createModel(geometryname, fillstyle, translate, scale) {
     const model = {};
     model.fillstyle = fillstyle;
     initDataAndBuffers(model, geometryname);
     // Create and initialize Model-View-Matrix.
     // transformiert Model Vertex von Welt in Kamerakoordinaten
     model.mvMatrix = mat4.create();
+    model.translate = translate;
+    model.scale = scale;
 
     models.push(model);
 }
@@ -215,19 +221,16 @@ function initEventHandler() {
         const sign = evt.shiftKey ? 1 : -1;
         const key = evt.which ? evt.which : evt.keyCode;
         const c = String.fromCharCode(key);
-        console.log(key);
-        console.log(c);
-        console.log("sign: " + sign);
 
         // Change projection of scene.
         switch (c) {
-            case "O":
-                camera.projectionType = "ortho";
-                camera.lrtb = 2;
-                break;
-            case "P":
-                camera.projectionType = "perspective";
-                break;
+            //case "O":
+            //camera.projectionType = "ortho";
+            //camera.lrtb = 2;
+            //break;
+            //case "P":
+            //camera.projectionType = "perspective";
+            //break;
             case "F":
                 camera.projectionType = "frustum";
                 camera.lrtb = 1.2;
@@ -238,19 +241,33 @@ function initEventHandler() {
             case "'":
                 camera.zAngle += deltaRotate;
                 break;
+            //case "N":
+            //camera.distance += sign * deltaTranslate;
+            //case "H":
+            //camera.eye[y] += -sign * deltaTranslate;
+            //break;
             case "N":
-                camera.distance += sign * deltaTranslate;
-            case "H":
-                camera.eye[y] += -sign * deltaTranslate;
-                break;
-            case "V":
-                // Camera fovy in radian.
-                camera.fovy += (sign * 5 * Math.PI) / 180;
-                break;
-            case "B":
                 // Camera near plane dimensions.
                 camera.lrtb += sign * 0.1;
-                console.log("camera-lrtb: " + camera.lrtb);
+                break;
+            case "D":
+                camera.eye[x] += deltaTranslate;
+                camera.center[x] += deltaTranslate;
+                break;
+
+            case "A":
+                camera.eye[x] -= deltaTranslate;
+                camera.center[x] -= deltaTranslate;
+                break;
+
+            case "W":
+                camera.eye[y] += deltaTranslate;
+                camera.center[y] += deltaTranslate;
+                break;
+
+            case "S":
+                camera.eye[y] -= deltaTranslate;
+                camera.center[y] -= deltaTranslate;
                 break;
             default:
         }
@@ -282,10 +299,17 @@ function render() {
     mat4.lookAt(camera.vMatrix, camera.eye, camera.center, camera.up);
 
     // Loop over models.
+    console.log(models);
     for (let i = 0; i < models.length; i++) {
         // Update modelview for model.
         // kopiert die Camera-Matrix in die Model-View-Matrix
         mat4.copy(models[i].mvMatrix, camera.vMatrix);
+        mat4.translate(
+            models[i].mvMatrix,
+            models[i].mvMatrix,
+            models[i].translate
+        );
+        mat4.scale(models[i].mvMatrix, models[i].mvMatrix, models[i].scale);
 
         // Set uniforms for model.
         // binde die Model-View-Matrix zur Transformation der Vertex Welt-Koordinaten
