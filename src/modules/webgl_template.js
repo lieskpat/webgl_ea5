@@ -137,11 +137,11 @@ function initUniforms() {
 function initModels() {
     // fill-style
     const fs = "fillwireframe";
-    createModel("torus", fs, [-1, 0, 0], [0.5, 0.5, 0.5]);
+    createModel("torus", fs, [-1.5, 0, 0], [0, 0, 0], [0.5, 0.5, 0.5]);
     //createModel("torus", "wireframe");
-    createModel("plane", "wireframe", [0, 0, 0], [1.0, 1.0, 1.0]);
-    createModel("pillow", fs, [1.0, 0, 0], [0.5, 0.5, 0.5]);
-    createModel("sphere", "wireframe", [0, 0, 2], [0.5, 0.5, 0.5]);
+    createModel("plane", "wireframe", [0, 0, 0], [0, 0, 0], [1.0, 1.0, 1.0]);
+    createModel("pillow", fs, [1.5, 0, 0], [0, 0, 0], [0.5, 0.5, 0.5]);
+    createModel("sphere", "wireframe", [0, 0, 3], [0, 0, 0], [0.5, 0.5, 0.5]);
 }
 
 /**
@@ -150,7 +150,7 @@ function initModels() {
  * @parameter geometryname: string with name of geometry.
  * @parameter fillstyle: wireframe, fill, fillwireframe.
  */
-function createModel(geometryname, fillstyle, translate, scale) {
+function createModel(geometryname, fillstyle, translate, rotate, scale) {
     const model = {};
     model.fillstyle = fillstyle;
     initDataAndBuffers(model, geometryname);
@@ -159,6 +159,7 @@ function createModel(geometryname, fillstyle, translate, scale) {
     model.mvMatrix = mat4.create();
     model.translate = translate;
     model.scale = scale;
+    model.rotate = rotate;
 
     models.push(model);
 }
@@ -249,7 +250,8 @@ function initEventHandler() {
             //break;
             case "N":
                 // Camera near plane dimensions.
-                camera.lrtb += sign * 0.1;
+                //camera.lrtb += sign * 0.1;
+                camera.distance += sign * deltaTranslate;
                 break;
             case "D":
                 camera.eye[x] += deltaTranslate;
@@ -304,12 +306,15 @@ function render() {
         // Update modelview for model.
         // kopiert die Camera-Matrix in die Model-View-Matrix
         mat4.copy(models[i].mvMatrix, camera.vMatrix);
+        mat4.scale(models[i].mvMatrix, models[i].mvMatrix, models[i].scale);
+        //mat4.rotate(models[i].mvMatrix, models[i].mvMatrix, models[i].rotate);
+
         mat4.translate(
             models[i].mvMatrix,
             models[i].mvMatrix,
             models[i].translate
         );
-        mat4.scale(models[i].mvMatrix, models[i].mvMatrix, models[i].scale);
+        //mat4.scale(models[i].mvMatrix, models[i].mvMatrix, models[i].scale);
 
         // Set uniforms for model.
         // binde die Model-View-Matrix zur Transformation der Vertex Welt-Koordinaten
