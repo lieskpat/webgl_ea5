@@ -214,36 +214,66 @@ function createVertexDataPillow() {
     }
 }
 
-function createVertexDataRecSphere(recursionDepth = 1) {
-    const vertexArray = [];
-    const lineArray = [];
+function createVertexDataRecSphere() {
+    const vertexArray = [
+        0, 1, 0, 0, 0, 1, 1, 0, 0, -1, 0, 0, 0, 0, -1, 0, -1, 0,
+    ];
+    //let vertexArray = [];
+    let lineArray = [];
+    const recursionDepth = 1;
 
-    // initial tetrahedron vertices
-    const vectorA = [-1.0, 1.0, 1.0];
-    const vectorB = [1.0, 1.0, -1.0];
-    const vectorC = [1.0, -1.0, 1.0];
-    const vectorD = [-1.0, -1.0, -1.0];
+    // top
+    const vectorA = [0, 1.0, 0];
+    // middle
+    const vectorB = [0, 0, 1.0];
+    //middle right
+    const vectorC = [1.0, 0, 0];
+    //middle left
+    const vectorD = [-1.0, 0, 0];
+    //back
+    const vectorE = [0, 0, -1.0];
+    //bottom
+    const vectorF = [0, -1.0, 0];
 
-    // normalize initial tetrahedron vertices
     vec3.normalize(vectorA, vectorA);
     vec3.normalize(vectorB, vectorB);
     vec3.normalize(vectorC, vectorC);
     vec3.normalize(vectorD, vectorD);
+    vec3.normalize(vectorE, vectorE);
+    vec3.normalize(vectorF, vectorF);
 
-    // define buffers to store the spheres' vertex positions and colors
-    const vertexColors = [];
+    //tessellateTriangle(vertexArray, vectorA, vectorB, vectorC, recursionDepth);
+    //tessellateTriangle(vertexArray, vectorA, vectorB, vectorD, recursionDepth);
+    //tessellateTriangle(vertexArray, vectorA, vectorC, vectorD, recursionDepth);
+    //tessellateTriangle(vertexArray, vectorB, vectorC, vectorD, recursionDepth);
+    let triangles = [
+        [2, 0, 1],
+        [5, 2, 1],
+        [3, 0, 2],
+        [5, 3, 2],
+        [4, 0, 3],
+        [5, 4, 3],
+        [1, 0, 4],
+        [5, 1, 4],
+    ];
 
-    // tesselate the tetrahedron trinagle wise
-    tessellateTriangle(vertexArray, vectorA, vectorB, vectorC, recursionDepth);
-    tessellateTriangle(vertexArray, vectorA, vectorB, vectorD, recursionDepth);
-    tessellateTriangle(vertexArray, vectorA, vectorC, vectorD, recursionDepth);
-    tessellateTriangle(vertexArray, vectorB, vectorC, vectorD, recursionDepth);
+    lineArray = [
+        0, 1, 0, 2, 0, 3, 0, 4,
 
+        1, 2, 1, 3, 2, 4, 3, 4,
+
+        1, 5, 2, 5, 3, 5, 4, 5,
+    ];
+    // Positions.
     this.vertices = new Float32Array(vertexArray);
+    // Normals.
+    //this.normals = new Float32Array(3 * (n + 1) * (m + 1));
+    // Index data.
     this.indicesLines = new Uint16Array(lineArray);
+    this.indicesTris = new Uint16Array(triangles);
 }
 
-function calculateMedianVector(vectorOne, vectorTwo) {
+function middleVector(vectorOne, vectorTwo) {
     // add the two vector to create a direction vector (median)
     var c = vec3.create();
     vec3.add(vectorOne, vectorTwo, c);
@@ -272,15 +302,9 @@ function tessellateTriangle(
         vertexArray.push(vectorThree[0], vectorThree[1], vectorThree[2]);
     } else {
         // calculate the medians...
-        var vectorOne_vectorTwo = calculateMedianVector(vectorOne, vectorTwo);
-        var vectorOne_vectorThree = calculateMedianVector(
-            vectorOne,
-            vectorThree
-        );
-        var vectorTwo_vectorThree = calculateMedianVector(
-            vectorTwo,
-            vectorThree
-        );
+        var vectorOne_vectorTwo = middleVector(vectorOne, vectorTwo);
+        var vectorOne_vectorThree = middleVector(vectorOne, vectorThree);
+        var vectorTwo_vectorThree = middleVector(vectorTwo, vectorThree);
 
         // ...and use them to span four new triangles which then gets tessellated again
         tessellateTriangle(
@@ -321,6 +345,10 @@ geometryModelDatas.push({
 geometryModelDatas.push({
     description: "pillow",
     function: createVertexDataPillow,
+});
+geometryModelDatas.push({
+    description: "sphere",
+    function: createVertexDataRecSphere,
 });
 
 export { geometryModelDatas };

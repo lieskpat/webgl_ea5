@@ -141,6 +141,7 @@ function initModels() {
     //createModel("torus", "wireframe");
     createModel("plane", "wireframe", [0, 0, 0], [1.0, 1.0, 1.0]);
     createModel("pillow", fs, [1.0, 0, 0], [0.5, 0.5, 0.5]);
+    createModel("sphere", "wireframe", [0, 0, 2], [0.5, 0.5, 0.5]);
 }
 
 /**
@@ -299,7 +300,6 @@ function render() {
     mat4.lookAt(camera.vMatrix, camera.eye, camera.center, camera.up);
 
     // Loop over models.
-    console.log(models);
     for (let i = 0; i < models.length; i++) {
         // Update modelview for model.
         // kopiert die Camera-Matrix in die Model-View-Matrix

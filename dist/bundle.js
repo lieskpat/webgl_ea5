@@ -60,7 +60,7 @@ if (!Math.hypot) Math.hypot = function () {
  * @returns {mat4} a new 4x4 matrix
  */
 
-function create() {
+function create$1() {
   var out = new ARRAY_TYPE(16);
 
   if (ARRAY_TYPE != Float32Array) {
@@ -435,6 +435,98 @@ function lookAt(out, eye, center, up) {
   return out;
 }
 
+/**
+ * 3 Dimensional Vector
+ * @module vec3
+ */
+
+/**
+ * Creates a new, empty vec3
+ *
+ * @returns {vec3} a new 3D vector
+ */
+
+function create() {
+  var out = new ARRAY_TYPE(3);
+
+  if (ARRAY_TYPE != Float32Array) {
+    out[0] = 0;
+    out[1] = 0;
+    out[2] = 0;
+  }
+
+  return out;
+}
+/**
+ * Normalize a vec3
+ *
+ * @param {vec3} out the receiving vector
+ * @param {ReadonlyVec3} a vector to normalize
+ * @returns {vec3} out
+ */
+
+function normalize(out, a) {
+  var x = a[0];
+  var y = a[1];
+  var z = a[2];
+  var len = x * x + y * y + z * z;
+
+  if (len > 0) {
+    //TODO: evaluate use of glm_invsqrt here?
+    len = 1 / Math.sqrt(len);
+  }
+
+  out[0] = a[0] * len;
+  out[1] = a[1] * len;
+  out[2] = a[2] * len;
+  return out;
+}
+/**
+ * Perform some operation over an array of vec3s.
+ *
+ * @param {Array} a the array of vectors to iterate over
+ * @param {Number} stride Number of elements between the start of each vec3. If 0 assumes tightly packed
+ * @param {Number} offset Number of elements to skip at the beginning of the array
+ * @param {Number} count Number of vec3s to iterate over. If 0 iterates over entire array
+ * @param {Function} fn Function to call for each vector in the array
+ * @param {Object} [arg] additional argument to pass to fn
+ * @returns {Array} a
+ * @function
+ */
+
+(function () {
+  var vec = create();
+  return function (a, stride, offset, count, fn, arg) {
+    var i, l;
+
+    if (!stride) {
+      stride = 3;
+    }
+
+    if (!offset) {
+      offset = 0;
+    }
+
+    if (count) {
+      l = Math.min(count * stride + offset, a.length);
+    } else {
+      l = a.length;
+    }
+
+    for (i = offset; i < l; i += stride) {
+      vec[0] = a[i];
+      vec[1] = a[i + 1];
+      vec[2] = a[i + 2];
+      fn(vec, vec, arg);
+      a[i] = vec[0];
+      a[i + 1] = vec[1];
+      a[i + 2] = vec[2];
+    }
+
+    return a;
+  };
+})();
+
 const geometryModelDatas = [];
 
 function createVertexDataTorus() {
@@ -647,6 +739,64 @@ function createVertexDataPillow() {
     }
 }
 
+function createVertexDataRecSphere() {
+    const vertexArray = [
+        0, 1, 0, 0, 0, 1, 1, 0, 0, -1, 0, 0, 0, 0, -1, 0, -1, 0,
+    ];
+    //let vertexArray = [];
+    let lineArray = [];
+
+    // top
+    const vectorA = [0, 1.0, 0];
+    // middle
+    const vectorB = [0, 0, 1.0];
+    //middle right
+    const vectorC = [1.0, 0, 0];
+    //middle left
+    const vectorD = [-1.0, 0, 0];
+    //back
+    const vectorE = [0, 0, -1.0];
+    //bottom
+    const vectorF = [0, -1.0, 0];
+
+    normalize(vectorA, vectorA);
+    normalize(vectorB, vectorB);
+    normalize(vectorC, vectorC);
+    normalize(vectorD, vectorD);
+    normalize(vectorE, vectorE);
+    normalize(vectorF, vectorF);
+
+    //tessellateTriangle(vertexArray, vectorA, vectorB, vectorC, recursionDepth);
+    //tessellateTriangle(vertexArray, vectorA, vectorB, vectorD, recursionDepth);
+    //tessellateTriangle(vertexArray, vectorA, vectorC, vectorD, recursionDepth);
+    //tessellateTriangle(vertexArray, vectorB, vectorC, vectorD, recursionDepth);
+    let triangles = [
+        [2, 0, 1],
+        [5, 2, 1],
+        [3, 0, 2],
+        [5, 3, 2],
+        [4, 0, 3],
+        [5, 4, 3],
+        [1, 0, 4],
+        [5, 1, 4],
+    ];
+
+    lineArray = [
+        0, 1, 0, 2, 0, 3, 0, 4,
+
+        1, 2, 1, 3, 2, 4, 3, 4,
+
+        1, 5, 2, 5, 3, 5, 4, 5,
+    ];
+    // Positions.
+    this.vertices = new Float32Array(vertexArray);
+    // Normals.
+    //this.normals = new Float32Array(3 * (n + 1) * (m + 1));
+    // Index data.
+    this.indicesLines = new Uint16Array(lineArray);
+    this.indicesTris = new Uint16Array(triangles);
+}
+
 geometryModelDatas.push({
     description: "torus",
     function: createVertexDataTorus,
@@ -658,6 +808,10 @@ geometryModelDatas.push({
 geometryModelDatas.push({
     description: "pillow",
     function: createVertexDataPillow,
+});
+geometryModelDatas.push({
+    description: "sphere",
+    function: createVertexDataRecSphere,
 });
 
 //const gl = initContext("gl_context");
@@ -687,10 +841,10 @@ const camera = {
     lrtb: 1.2,
     // View matrix.
     // creates identy matrix
-    vMatrix: create(),
+    vMatrix: create$1(),
     // Projection matrix.
     // creates identy matrix
-    pMatrix: create(),
+    pMatrix: create$1(),
     // Projection types: ortho, perspective, frustum.
     //projectionType: "ortho",
     projectionType: "frustum",
@@ -798,6 +952,7 @@ function initModels() {
     //createModel("torus", "wireframe");
     createModel("plane", "wireframe", [0, 0, 0], [1.0, 1.0, 1.0]);
     createModel("pillow", fs, [1.0, 0, 0], [0.5, 0.5, 0.5]);
+    createModel("sphere", "wireframe", [0, 0, 2], [0.5, 0.5, 0.5]);
 }
 
 /**
@@ -812,7 +967,7 @@ function createModel(geometryname, fillstyle, translate, scale) {
     initDataAndBuffers(model, geometryname);
     // Create and initialize Model-View-Matrix.
     // transformiert Model Vertex von Welt in Kamerakoordinaten
-    model.mvMatrix = create();
+    model.mvMatrix = create$1();
     model.translate = translate;
     model.scale = scale;
 
@@ -954,7 +1109,6 @@ function render() {
     lookAt(camera.vMatrix, camera.eye, camera.center, camera.up);
 
     // Loop over models.
-    console.log(models);
     for (let i = 0; i < models.length; i++) {
         // Update modelview for model.
         // kopiert die Camera-Matrix in die Model-View-Matrix
